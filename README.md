@@ -1,27 +1,19 @@
 # kc
 
-TODO: Write a description here
+k-mer counter for FASTQ files.
 
-## Installation
+## Build
 
-TODO: Write installation instructions here
+```
+shards build -Dpreview_mt -Dexecution_context
+```
 
 ## Usage
 
-TODO: Write usage instructions here
+```
+./bin/kc -i input.fastq
+```
 
-## Development
+## License
 
-TODO: Write development instructions here
-
-## Contributing
-
-1. Fork it (<https://github.com/your-github-user/kc/fork>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
-
-## Contributors
-
-- [kojix2](https://github.com/your-github-user) - creator and maintainer
+MIT
