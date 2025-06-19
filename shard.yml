@@ -1,0 +1,17 @@
+name: kc
+version: 0.1.0
+
+authors:
+  - kojix2 <2xijok@gmail.com>
+
+targets:
+  kc:
+    main: src/kc.cr
+
+dependencies:
+  fastx:
+    github: bio-cr/fastx.cr
+
+crystal: '>= 1.16.3'
+
+license: MIT
