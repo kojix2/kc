@@ -37,14 +37,15 @@ record ReadRow,
   counts : KmerCount
 
 def count_kmers(seq : String, k : Int32) : KmerCount
-  h = KmerCount.new(0_u32)
-  max = seq.bytesize - k
-  return h if max < 0
-  bytes = seq.upcase.bytes
-  (0..max).each do |i|
-    kmer = String.new Slice.new(bytes.to_unsafe + i, k)
+  h = KmerCount.new(0_u32, initial_capacity: 4**k)
+  return h if seq.bytesize < k
+  
+  encoded_bases = Fastx.encode_bases(seq)
+  encoded_bases.each_cons(k) do |kmer_slice|
+    kmer = Fastx.decode_bases(kmer_slice)
     h[kmer] += 1
   end
+  
   h
 end
 
