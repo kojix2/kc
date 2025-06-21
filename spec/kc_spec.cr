@@ -80,9 +80,10 @@ describe "kc integration" do
         File.exists?(output_file.path).should be_true
         File.size(output_file.path).should be > 0
 
-        # Check if it has the expected binary format header
+        # Check if it has the expected Arrow IPC format
         content = File.read(output_file.path)
-        content[0..3].should eq("ARSN") # Magic header for version with read names
+        # Arrow IPC files start with "ARROW1" magic bytes
+        content[0..5].should eq("ARROW1")
       end
     end
   end

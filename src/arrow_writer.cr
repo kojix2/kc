@@ -1,5 +1,6 @@
-# Arrow sparse tensor bindings
-@[Link(ldflags: "#{__DIR__}/../libarrow_sparse.a -lstdc++")]
+# Arrow sparse tensor bindings using official Arrow C++ library
+# Note: The static library path is handled by Makefile's --link-flags
+@[Link(ldflags: "-larrow -lstdc++")]
 lib ArrowSparse
   fun write_arrow_sparse(filename : LibC::Char*, coords : LibC::Int64T*, values : LibC::UInt32T*, read_names : LibC::Char**, read_name_lengths : LibC::Int64T*, nnz : LibC::Int64T, num_rows : LibC::Int64T, num_cols : LibC::Int64T) : LibC::Int
 end

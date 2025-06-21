@@ -20,7 +20,7 @@ make test
 
 - `tsv` (default): Dense matrix format
 - `sparse`: Sparse format (ID, k-mer, count)
-- `arrow`: Binary format with read names
+- `arrow`: Arrow IPC format
 
 ## Options
 

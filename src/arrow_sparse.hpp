@@ -4,7 +4,7 @@
 
 extern "C"
 {
-    // Write sparse tensor with read names included
+    // Write sparse tensor using official Arrow C++ library
     // coords: flattened coordinates array [row0, col0, row1, col1, ...]
     // values: k-mer count values (uint32_t)
     // read_names: array of null-terminated strings for row names

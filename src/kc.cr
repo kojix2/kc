@@ -133,12 +133,12 @@ end
 def flush_ready_rows(pending : Hash(Int64, Kmer::Entry), next_index : Int64)
   ready = [] of Kmer::Entry
   index = next_index
-  
+
   while row = pending.delete(index)
     ready << row
     index += 1
   end
-  
+
   {ready, index}
 end
 
