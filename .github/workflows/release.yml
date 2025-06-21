@@ -51,17 +51,6 @@ jobs:
           gzip bin/kc
           mv bin/kc.gz bin/kc-macos.gz
 
-      - name: Run Windows Build x64
-        if: matrix.os == 'windows'
-        run: |
-          shards install --without-development --release
-          make all
-          make kc
-          mkdir -p bin
-          copy kc.exe bin\kc.exe
-          Set-ExecutionPolicy RemoteSigned -Scope Process
-          Compress-Archive -Path bin/kc.exe -DestinationPath bin/kc-windows.zip
-
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
