@@ -22,10 +22,10 @@ jobs:
           crystal: latest
       - name: Install dependencies
         run: shards install
+      - name: Build executable
+        run: shards build --release -Dpreview_mt -Dexecution_context
       - name: Run tests
         run: crystal spec
-      - name: Build executable
-        run: shards build --release
       - name: Run executable (help)
         run: bin/kc --help
       - uses: actions/upload-artifact@v4

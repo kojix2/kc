@@ -2,6 +2,12 @@ require "./spec_helper"
 require "file_utils"
 
 describe "kc integration" do
+  before_all do
+    unless File.exists?("./bin/kc")
+      system("shards build --release -Dpreview_mt -Dexecution_context")
+    end
+  end
+
   it "runs without errors" do
     File.tempfile("test", ".fastq") do |file|
       file.puts "@read1"
@@ -9,9 +15,9 @@ describe "kc integration" do
       file.puts "+"
       file.puts "IIII"
       file.flush
-
+      
       result = `./bin/kc -i #{file.path} 2>/dev/null`
-
+      
       result.should contain("ID")
       result.should contain("read1")
     end
