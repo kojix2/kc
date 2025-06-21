@@ -1,10 +1,10 @@
 require "./spec_helper"
-require "../src/arrow_sparse"
+require "../src/sparse_binary"
 
-describe ArrowSparse do
-  describe ".write_arrow_sparse" do
+describe SparseBinary do
+  describe ".write" do
     it "writes and reads sparse tensor data correctly" do
-      filename = "test_sparse.arrow"
+      filename = "test_sparse.bin"
 
       # Test data
       coords = [0_i64, 0_i64, 0_i64, 2_i64, 1_i64, 1_i64, 2_i64, 0_i64]
@@ -15,13 +15,13 @@ describe ArrowSparse do
       num_cols = 3_i64
 
       # Write data
-      result = ArrowSparse.write_arrow_sparse(
+      result = SparseBinary.write(
         filename, coords, values, read_names, nnz, num_rows, num_cols
       )
       result.should be_true
 
       # Read and verify data
-      data = ArrowSparse.read_arrow_sparse(filename)
+      data = SparseBinary.read(filename)
       data[:nnz].should eq(nnz)
       data[:num_rows].should eq(num_rows)
       data[:num_cols].should eq(num_cols)
@@ -34,9 +34,9 @@ describe ArrowSparse do
     end
   end
 
-  describe ".write_arrow_sparse_slice" do
+  describe ".write_slice" do
     it "writes and reads sparse tensor data with slices correctly" do
-      filename = "test_sparse_slice.arrow"
+      filename = "test_sparse_slice.bin"
 
       # Test data
       coords_array = [0_i64, 0_i64, 0_i64, 2_i64, 1_i64, 1_i64, 2_i64, 0_i64]
@@ -49,13 +49,13 @@ describe ArrowSparse do
       num_cols = 3_i64
 
       # Write data
-      result = ArrowSparse.write_arrow_sparse_slice(
+      result = SparseBinary.write_slice(
         filename, coords, values, read_names, nnz, num_rows, num_cols
       )
       result.should be_true
 
       # Read and verify data
-      data = ArrowSparse.read_arrow_sparse(filename)
+      data = SparseBinary.read(filename)
       data[:nnz].should eq(nnz)
       data[:num_rows].should eq(num_rows)
       data[:num_cols].should eq(num_cols)
@@ -74,21 +74,21 @@ describe ArrowSparse do
       values = [10_u32]
       read_names = ["read1"]
 
-      result = ArrowSparse.write_arrow_sparse(
-        "/invalid/path/file.arrow", coords, values, read_names, 1_i64, 1_i64, 1_i64
+      result = SparseBinary.write(
+        "/invalid/path/file.bin", coords, values, read_names, 1_i64, 1_i64, 1_i64
       )
       result.should be_false
     end
 
     it "raises error for invalid magic header" do
       # Create a file with wrong magic header
-      filename = "invalid_magic.arrow"
+      filename = "invalid_magic.bin"
       File.open(filename, "wb") do |file|
         file.write("XXXX".to_slice)
       end
 
       expect_raises(Exception, "Invalid magic header") do
-        ArrowSparse.read_arrow_sparse(filename)
+        SparseBinary.read(filename)
       end
 
       # Clean up

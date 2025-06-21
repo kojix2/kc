@@ -29,7 +29,7 @@ ifeq ($(ARROW_IMPL),cpp)
   DEPS = $(STATIC_LIB)
   LINK_FLAGS = --link-flags="$(PWD)/$(STATIC_LIB) $(ARROW_LIBS)"
 else
-  CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context -Dcrystal_arrow
+  CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context -Dcustom_binary
   DEPS = 
   LINK_FLAGS = 
 endif
@@ -82,7 +82,7 @@ help:
 	@echo "Available targets:"
 	@echo "  all        - Build with default implementation (cpp)"
 	@echo "  cpp        - Build with C++ Arrow implementation (default)"
-	@echo "  crystal    - Build with Crystal Arrow implementation"
+	@echo "  crystal    - Build with custom binary format implementation"
 	@echo "  clean      - Clean build artifacts"
 	@echo "  test       - Build and test"
 	@echo "  check-arrow - Check if Arrow C++ library is available"
@@ -90,3 +90,7 @@ help:
 	@echo "  help       - Show this help"
 	@echo ""
 	@echo "You can also use: make ARROW_IMPL=cpp|crystal"
+	@echo ""
+	@echo "Output formats:"
+	@echo "  cpp        - Official Apache Arrow IPC format (ARROW1 header)"
+	@echo "  crystal    - Custom sparse binary format (ARSN header)"

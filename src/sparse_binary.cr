@@ -1,9 +1,9 @@
-# Arrow sparse tensor writer implementation in Crystal
-# This is a minimal implementation for demonstration purposes
-# In production, you would use the official Arrow library
+# Custom sparse binary format writer implementation in Crystal
+# This is a custom binary format (NOT Apache Arrow compatible)
+# Uses "ARSN" magic header for "Arrow-like Sparse with Names"
 
-module ArrowSparse
-  # Write sparse tensor with read names included
+module SparseBinary
+  # Write sparse tensor with read names included in custom binary format
   # coords: flattened coordinates array [row0, col0, row1, col1, ...]
   # values: k-mer count values (UInt32)
   # read_names: array of strings for row names
@@ -12,17 +12,17 @@ module ArrowSparse
   # num_cols: number of columns in the matrix
   # filename: output file path
   # Returns true on success, false on error
-  def self.write_arrow_sparse(filename : String,
-                              coords : Array(Int64),
-                              values : Array(UInt32),
-                              read_names : Array(String),
-                              nnz : Int64,
-                              num_rows : Int64,
-                              num_cols : Int64) : Bool
+  def self.write(filename : String,
+                 coords : Array(Int64),
+                 values : Array(UInt32),
+                 read_names : Array(String),
+                 nnz : Int64,
+                 num_rows : Int64,
+                 num_cols : Int64) : Bool
     begin
       File.open(filename, "wb") do |file|
-        # Magic header for Arrow sparse format with read names
-        magic = "ARSN".to_slice # Arrow Sparse with Names
+        # Magic header for custom sparse format with read names
+        magic = "ARSN".to_slice # Arrow-like Sparse with Names (custom format)
         file.write(magic)
 
         # Metadata
@@ -63,17 +63,17 @@ module ArrowSparse
   end
 
   # Alternative method with slices for better performance with large data
-  def self.write_arrow_sparse_slice(filename : String,
-                                    coords : Slice(Int64),
-                                    values : Slice(UInt32),
-                                    read_names : Array(String),
-                                    nnz : Int64,
-                                    num_rows : Int64,
-                                    num_cols : Int64) : Bool
+  def self.write_slice(filename : String,
+                       coords : Slice(Int64),
+                       values : Slice(UInt32),
+                       read_names : Array(String),
+                       nnz : Int64,
+                       num_rows : Int64,
+                       num_cols : Int64) : Bool
     begin
       File.open(filename, "wb") do |file|
-        # Magic header for Arrow sparse format with read names
-        magic = "ARSN".to_slice # Arrow Sparse with Names
+        # Magic header for custom sparse format with read names
+        magic = "ARSN".to_slice # Arrow-like Sparse with Names (custom format)
         file.write(magic)
 
         # Metadata
@@ -112,7 +112,7 @@ module ArrowSparse
   end
 
   # Reader method to verify the written data
-  def self.read_arrow_sparse(filename : String)
+  def self.read(filename : String)
     File.open(filename, "rb") do |file|
       # Read magic header
       magic = Bytes.new(4)

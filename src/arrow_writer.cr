@@ -55,8 +55,8 @@
     end
   end
 {% else %}
-  # Crystal Arrow implementation (default)
-  require "./arrow_sparse"
+  # Custom sparse binary implementation (default)
+  require "./sparse_binary"
 
   module ArrowWriter
     def self.write_sparse_coo(filename : String, data : Array({String, String, UInt32}), all_kmers : Array(String))
@@ -86,8 +86,8 @@
       num_cols = all_kmers.size.to_i64
       nnz = data.size.to_i64
 
-      # Use the Crystal implementation
-      ArrowSparse.write_arrow_sparse(filename, coords, values, read_ids, nnz, num_rows, num_cols)
+      # Use the custom sparse binary implementation
+      SparseBinary.write(filename, coords, values, read_ids, nnz, num_rows, num_cols)
     end
   end
 {% end %}

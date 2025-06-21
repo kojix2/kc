@@ -86,7 +86,7 @@ describe "kc integration" do
           # C++ implementation uses official Arrow IPC format
           content[0..5].should eq("ARROW1")
         {% else %}
-          # Crystal implementation uses custom ARSN format
+          # Custom binary implementation uses ARSN format
           content[0..3].should eq("ARSN")
         {% end %}
       end
