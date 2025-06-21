@@ -38,4 +38,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: kc-${{ matrix.os }}
-          path: ${{ matrix.os == 'windows' && 'kc.exe' || 'kc' }}
+          path: kc

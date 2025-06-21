@@ -10,7 +10,7 @@ jobs:
     name: Build Release ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu, macos, windows]
+        os: [ubuntu, macos]
     runs-on: ${{ matrix.os }}-latest
     steps:
       - name: Checkout code
@@ -42,6 +42,7 @@ jobs:
         if: matrix.os == 'macos'
         run: |
           xcode-select --install || true
+          mkdir -p bin
           shards install --without-development --release
           make all
           make kc
@@ -57,5 +58,4 @@ jobs:
           files: |
             bin/kc-linux.gz
             bin/kc-macos.gz
-            bin/kc-windows.zip
             LICENSE
