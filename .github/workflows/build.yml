@@ -19,12 +19,23 @@ jobs:
       - uses: crystal-lang/install-crystal@v1
         with:
           crystal: latest
-      - name: Install C++ compiler
+      - name: Install C++ compiler and Arrow
         if: matrix.os == 'ubuntu'
-        run: sudo apt-get update && sudo apt-get install -y build-essential
-      - name: Install C++ compiler
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential pkg-config
+          # Install Apache Arrow from official repository
+          sudo apt install -y -V ca-certificates lsb-release wget
+          wget https://packages.apache.org/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+          sudo apt update
+          # Install only required Arrow packages for our use case
+          sudo apt install -y -V libarrow-dev
+      - name: Install C++ compiler and Arrow
         if: matrix.os == 'macos'
-        run: xcode-select --install || true
+        run: |
+          xcode-select --install || true
+          brew install apache-arrow
       - name: Install dependencies
         run: shards install
       - name: Build static library

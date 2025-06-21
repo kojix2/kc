@@ -29,7 +29,7 @@ jobs:
           mkdir -p bin
           chmod 755 bin
           docker run -d --name alpine -v $(pwd):/workspace -w /workspace crystallang/crystal:latest-alpine tail -f /dev/null
-          docker exec alpine apk add build-base readline-dev readline-static ncurses-dev ncurses-static ncurses-libs
+          docker exec alpine apk add build-base readline-dev readline-static ncurses-dev ncurses-static ncurses-libs arrow-dev
           docker exec alpine shards install --without-development --release
           docker exec alpine make all
           docker exec alpine make kc
@@ -42,6 +42,7 @@ jobs:
         if: matrix.os == 'macos'
         run: |
           xcode-select --install || true
+          brew install apache-arrow
           mkdir -p bin
           shards install --without-development --release
           make all
