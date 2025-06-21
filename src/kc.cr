@@ -4,6 +4,7 @@ require "fastx"
 require "fiber/execution_context"
 require "log"
 require "./kmer"
+require "./arrow_writer"
 
 # CLI options
 
@@ -23,7 +24,7 @@ OptionParser.parse do |p|
   p.on("-t", "--threads N", "Number of worker threads (default: #{num_workers})") { |v| num_workers = v.to_i.clamp(1, 256) }
   p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_size})") { |v| chunk_size = v.to_i.clamp(1, 10_000) }
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
-  p.on("--format FORMAT", "Output format: tsv (default), sparse-tsv") { |v| format = v }
+  p.on("--format FORMAT", "Output format: tsv (default), sparse-tsv, arrow-sparse") { |v| format = v }
   p.on("-h", "--help", "Show this help message") { puts p; exit }
   p.invalid_option { STDERR.puts(p); exit 1 }
   p.missing_option { STDERR.puts(p); exit 1 }
@@ -133,23 +134,66 @@ ctx.spawn(name: "emitter") do
   next_index = 0_i64
 
   all_kmers = Kmer.all_kmers(k_size)
-  write_header(format, output_io, all_kmers)
 
-  while row = result_q.receive?
-    pending[row.index] = row
+  # For arrow-sparse format, collect all data first
+  if format == "arrow-sparse"
+    all_data = [] of {String, String, UInt32}
 
-    while row = pending.delete(next_index)
-      write_row(format, output_io, row, all_kmers)
-      next_index += 1
+    while row = result_q.receive?
+      pending[row.index] = row
+
+      while row = pending.delete(next_index)
+        row.counts.each do |kmer, count|
+          next if count == 0
+          all_data << {row.id, kmer, count}
+        end
+        next_index += 1
+      end
     end
-  end
 
-  until pending.empty?
-    if row = pending.delete(next_index)
-      write_row(format, output_io, row, all_kmers)
-      next_index += 1
-    else
-      break
+    until pending.empty?
+      if row = pending.delete(next_index)
+        row.counts.each do |kmer, count|
+          next if count == 0
+          all_data << {row.id, kmer, count}
+        end
+        next_index += 1
+      else
+        break
+      end
+    end
+
+    # Write Arrow sparse format
+    if output_file.empty?
+      STDERR.puts "[kc] Error: Arrow sparse format requires output file (-o option)"
+      exit 1
+    end
+
+    success = ArrowWriter.write_sparse_coo(output_file, all_data, all_kmers)
+    unless success
+      STDERR.puts "[kc] Error: Failed to write Arrow sparse file"
+      exit 1
+    end
+  else
+    # Regular TSV/sparse-TSV formats
+    write_header(format, output_io, all_kmers)
+
+    while row = result_q.receive?
+      pending[row.index] = row
+
+      while row = pending.delete(next_index)
+        write_row(format, output_io, row, all_kmers)
+        next_index += 1
+      end
+    end
+
+    until pending.empty?
+      if row = pending.delete(next_index)
+        write_row(format, output_io, row, all_kmers)
+        next_index += 1
+      else
+        break
+      end
     end
   end
 ensure
