@@ -1,6 +1,6 @@
-# Makefile for building the Arrow sparse static library and Crystal application
+# Makefile for building Crystal application with switchable Arrow implementations
 
-# Compiler settings
+# Compiler settings for C++
 CXX = g++
 CXXFLAGS = -std=c++17 -fPIC -O2 -Wall
 
@@ -8,47 +8,65 @@ CXXFLAGS = -std=c++17 -fPIC -O2 -Wall
 ARROW_CFLAGS = $(shell pkg-config --cflags arrow)
 ARROW_LIBS = $(shell pkg-config --libs arrow)
 
-# Library settings
-LIB_NAME = libarrow_sparse
-STATIC_LIB = $(LIB_NAME).a
-
-# Source files
-CPP_SOURCES = src/arrow_sparse.cpp
-CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
-
 # Crystal application
 CRYSTAL_APP = kc
 CRYSTAL_SOURCE = src/kc.cr
-CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context
 
-.PHONY: all clean install test check-arrow
+# Arrow implementation selection (default: crystal)
+# Use: make ARROW_IMPL=cpp for C++ implementation
+# Use: make ARROW_IMPL=crystal for Crystal implementation (default)
+ARROW_IMPL ?= crystal
+
+# Library settings for C++ implementation
+LIB_NAME = libarrow_sparse
+STATIC_LIB = $(LIB_NAME).a
+CPP_SOURCES = src/arrow_sparse.cpp
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+
+# Set Crystal flags and dependencies based on implementation
+ifeq ($(ARROW_IMPL),cpp)
+  CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context -Dcpp_arrow
+  DEPS = $(STATIC_LIB)
+  LINK_FLAGS = --link-flags="$(PWD)/$(STATIC_LIB) $(ARROW_LIBS)"
+else
+  CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context -Dcrystal_arrow
+  DEPS = 
+  LINK_FLAGS = 
+endif
+
+.PHONY: all clean test crystal cpp help check-arrow
+
+# Default target
+all: $(CRYSTAL_APP)
+
+# Build with Crystal implementation
+crystal:
+	$(MAKE) ARROW_IMPL=crystal $(CRYSTAL_APP)
 
 # Check if Arrow is available
 check-arrow:
 	@pkg-config --exists arrow || (echo "Error: Arrow C++ library not found. Please install libarrow-dev or arrow-cpp." && exit 1)
 
-# Default target: build static library
-all: check-arrow $(STATIC_LIB)
+# Build with C++ implementation  
+cpp: check-arrow
+	$(MAKE) ARROW_IMPL=cpp $(CRYSTAL_APP)
 
-# Build static library
+# Build Crystal application
+$(CRYSTAL_APP): $(DEPS)
+	@echo "Building with $(ARROW_IMPL) Arrow implementation..."
+	crystal build $(CRYSTAL_SOURCE) $(CRYSTAL_FLAGS) $(LINK_FLAGS) -o $@
+
+# Build C++ static library (only needed for C++ implementation)
 $(STATIC_LIB): $(CPP_OBJECTS)
 	ar rcs $@ $^
 
-# Compile C++ object files with Arrow includes
+# Compile C++ object files
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(ARROW_CFLAGS) -c $< -o $@
-
-# Build Crystal application (depends on static library)
-$(CRYSTAL_APP): $(STATIC_LIB)
-	crystal build $(CRYSTAL_SOURCE) $(CRYSTAL_FLAGS) --link-flags="$(PWD)/$(STATIC_LIB) $(ARROW_LIBS)" -o $@
 
 # Clean build artifacts
 clean:
 	rm -f $(CPP_OBJECTS) $(STATIC_LIB) $(CRYSTAL_APP)
-
-# Install static library to system
-install: $(STATIC_LIB)
-	cp $(STATIC_LIB) /usr/local/lib/ || sudo cp $(STATIC_LIB) /usr/local/lib/
 
 # Test: build Crystal application
 test: $(CRYSTAL_APP)
@@ -58,3 +76,17 @@ test: $(CRYSTAL_APP)
 arrow-info:
 	@echo "Arrow CFLAGS: $(ARROW_CFLAGS)"
 	@echo "Arrow LIBS: $(ARROW_LIBS)"
+
+# Show help
+help:
+	@echo "Available targets:"
+	@echo "  all        - Build with default implementation (crystal)"
+	@echo "  crystal    - Build with Crystal Arrow implementation"
+	@echo "  cpp        - Build with C++ Arrow implementation"
+	@echo "  clean      - Clean build artifacts"
+	@echo "  test       - Build and test"
+	@echo "  check-arrow - Check if Arrow C++ library is available"
+	@echo "  arrow-info - Show Arrow library configuration"
+	@echo "  help       - Show this help"
+	@echo ""
+	@echo "You can also use: make ARROW_IMPL=crystal|cpp"
