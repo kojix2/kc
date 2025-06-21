@@ -64,14 +64,13 @@ end
 
 chunk_q = Channel({Int64, Array(String), Array(String)}).new(16)
 result_q = Channel(ReadRow).new(16)
+total_reads_q = Channel(Int64).new(1)
 
 Log.info { "[kc] k-mer counting: k=#{k_size}, threads=#{worker_cnt}, input=#{File.basename(input_file)}" }
 
 ctx = Fiber::ExecutionContext::MultiThreaded.new("kmer-pool", worker_cnt + 2)
 worker_wg = WaitGroup.new(worker_cnt)
 mainio_wg = WaitGroup.new(3)
-
-total_reads = 0_i64
 
 # Reader
 
@@ -89,7 +88,7 @@ ctx.spawn(name: "reader") do
       end
     end
     chunk_q.send({cursor, ids, seqs}) unless ids.empty?
-    total_reads = cursor + ids.size
+    total_reads_q.send(cursor + ids.size)
   end
   chunk_q.close
 ensure
@@ -158,6 +157,7 @@ end
 
 mainio_wg.wait
 
+total_reads = total_reads_q.receive
 Log.info { "[kc] Completed: #{total_reads} reads processed" }
 
 # Only close file if it's not STDOUT
