@@ -2,6 +2,7 @@ require "option_parser"
 require "wait_group"
 require "fastx"
 require "fiber/execution_context"
+require "log"
 
 # CLI options
 
@@ -22,7 +23,15 @@ OptionParser.parse do |p|
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
   p.on("-h", "--help", "Show this help message") { puts p; exit }
 end
-abort "--input/-i is required" if input_file.empty?
+abort "Input file is required. Use -i to specify a FASTQ file." if input_file.empty?
+
+# Setup logging to STDERR
+log_backend = Log::IOBackend.new(STDERR)
+if verbose
+  Log.setup(:info, log_backend)
+else
+  Log.setup(:warn, log_backend)
+end
 
 out = output_file.empty? ? STDOUT : File.open(output_file, "w")
 out.sync = true
@@ -39,13 +48,13 @@ record ReadRow,
 def count_kmers(seq : String, k : Int32) : KmerCount
   h = KmerCount.new(0_u32, initial_capacity: 4**k)
   return h if seq.bytesize < k
-  
+
   encoded_bases = Fastx.encode_bases(seq)
   encoded_bases.each_cons(k) do |kmer_slice|
     kmer = Fastx.decode_bases(kmer_slice)
     h[kmer] += 1
   end
-  
+
   h
 end
 
@@ -54,9 +63,13 @@ end
 chunk_q = Channel({Int64, Array(String), Array(String)}).new(16)
 result_q = Channel(ReadRow).new(16)
 
+Log.info { "[kc] k-mer counting: k=#{k_size}, threads=#{worker_cnt}, input=#{File.basename(input_file)}" }
+
 ctx = Fiber::ExecutionContext::MultiThreaded.new("kmer-pool", worker_cnt + 2)
 worker_wg = WaitGroup.new(worker_cnt)
 mainio_wg = WaitGroup.new(3)
+
+total_reads = 0_i64
 
 # Reader
 
@@ -74,6 +87,7 @@ ctx.spawn(name: "reader") do
       end
     end
     chunk_q.send({cursor, ids, seqs}) unless ids.empty?
+    total_reads = cursor + ids.size
   end
   chunk_q.close
 ensure
@@ -141,4 +155,10 @@ ensure
 end
 
 mainio_wg.wait
-out.close
+
+Log.info { "[kc] Completed: #{total_reads} reads processed" }
+
+# Only close file if it's not STDOUT
+unless out == STDOUT
+  out.close
+end
