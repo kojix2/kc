@@ -6,12 +6,13 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.os }}-${{ matrix.arrow_impl }}
     runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu", "macos"]
+        arrow_impl: ["cpp", "crystal"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,7 +21,7 @@ jobs:
         with:
           crystal: latest
       - name: Install C++ compiler and Arrow
-        if: matrix.os == 'ubuntu'
+        if: matrix.os == 'ubuntu' && matrix.arrow_impl == 'cpp'
         run: |
           sudo apt update
           sudo apt install -y build-essential pkg-config
@@ -32,21 +33,30 @@ jobs:
           # Install only required Arrow packages for our use case
           sudo apt install -y -V libarrow-dev
       - name: Install C++ compiler and Arrow
-        if: matrix.os == 'macos'
+        if: matrix.os == 'macos' && matrix.arrow_impl == 'cpp'
         run: |
           xcode-select --install || true
           brew install apache-arrow
+      - name: Install basic build tools (Crystal implementation)
+        if: matrix.arrow_impl == 'crystal'
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu" ]; then
+            sudo apt update
+            sudo apt install -y build-essential
+          fi
       - name: Install dependencies
         run: shards install
-      - name: Build static library
-        run: make all
-      - name: Build executable
-        run: make test
+      - name: Build with C++ implementation
+        if: matrix.arrow_impl == 'cpp'
+        run: make ARROW_IMPL=cpp
+      - name: Build with Crystal implementation
+        if: matrix.arrow_impl == 'crystal'
+        run: make ARROW_IMPL=crystal
       - name: Run tests
-        run: crystal spec
+        run: crystal spec -Dpreview_mt -Dexecution_context
       - name: Run executable (help)
         run: ./kc --help
       - uses: actions/upload-artifact@v4
         with:
-          name: kc-${{ matrix.os }}
+          name: kc-${{ matrix.os }}-${{ matrix.arrow_impl }}
           path: kc

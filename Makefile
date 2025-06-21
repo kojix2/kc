@@ -12,10 +12,10 @@ ARROW_LIBS = $(shell pkg-config --libs arrow)
 CRYSTAL_APP = kc
 CRYSTAL_SOURCE = src/kc.cr
 
-# Arrow implementation selection (default: crystal)
-# Use: make ARROW_IMPL=cpp for C++ implementation
-# Use: make ARROW_IMPL=crystal for Crystal implementation (default)
-ARROW_IMPL ?= crystal
+# Arrow implementation selection (default: cpp)
+# Use: make ARROW_IMPL=cpp for C++ implementation (default)
+# Use: make ARROW_IMPL=crystal for Crystal implementation
+ARROW_IMPL ?= cpp
 
 # Library settings for C++ implementation
 LIB_NAME = libarrow_sparse
@@ -80,13 +80,13 @@ arrow-info:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  all        - Build with default implementation (crystal)"
+	@echo "  all        - Build with default implementation (cpp)"
+	@echo "  cpp        - Build with C++ Arrow implementation (default)"
 	@echo "  crystal    - Build with Crystal Arrow implementation"
-	@echo "  cpp        - Build with C++ Arrow implementation"
 	@echo "  clean      - Clean build artifacts"
 	@echo "  test       - Build and test"
 	@echo "  check-arrow - Check if Arrow C++ library is available"
 	@echo "  arrow-info - Show Arrow library configuration"
 	@echo "  help       - Show this help"
 	@echo ""
-	@echo "You can also use: make ARROW_IMPL=crystal|cpp"
+	@echo "You can also use: make ARROW_IMPL=cpp|crystal"
