@@ -41,8 +41,8 @@ jobs:
         run: |
           shards install --without-development --release
           shards build --release -Dpreview_mt -Dexecution_context
-          chmod +x bin/kc
           otool -L bin/kc
+          chmod +x bin/kc
           gzip bin/kc
           mv bin/kc.gz bin/kc-macos.gz
 
