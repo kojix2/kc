@@ -13,6 +13,7 @@ k_size = 3
 num_workers = 4
 chunk_size = 1_000
 verbose = false
+format = "tsv" # default format
 
 OptionParser.parse do |p|
   p.banner = "Usage: kc [options] -i FILE"
@@ -22,6 +23,7 @@ OptionParser.parse do |p|
   p.on("-t", "--threads N", "Number of worker threads (default: #{num_workers})") { |v| num_workers = v.to_i.clamp(1, 256) }
   p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_size})") { |v| chunk_size = v.to_i.clamp(1, 10_000) }
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
+  p.on("--format FORMAT", "Output format: tsv (default), sparse-tsv") { |v| format = v }
   p.on("-h", "--help", "Show this help message") { puts p; exit }
   p.invalid_option { STDERR.puts(p); exit 1 }
   p.missing_option { STDERR.puts(p); exit 1 }
@@ -36,8 +38,8 @@ else
   Log.setup(:warn, log_backend)
 end
 
-out = output_file.empty? ? STDOUT : File.open(output_file, "w")
-out.sync = true
+output_io = output_file.empty? ? STDOUT : File.open(output_file, "w")
+output_io.sync = true
 
 # channels
 
@@ -97,6 +99,33 @@ ensure
   mainio_wg.done
 end
 
+# Output formatters
+
+def write_header(format : String, io : IO, all_kmers : Array(String))
+  case format
+  when "sparse-tsv"
+    io.puts "ID\tkmer\tcount"
+  else # "tsv"
+    io.print "ID"
+    all_kmers.each { |k| io.print '\t', k }
+    io.puts
+  end
+end
+
+def write_row(format : String, io : IO, row : Kmer::Entry, all_kmers : Array(String))
+  case format
+  when "sparse-tsv"
+    row.counts.each do |kmer, count|
+      next if count == 0
+      io.puts "#{row.id}\t#{kmer}\t#{count}"
+    end
+  else # "tsv"
+    io.print row.id
+    all_kmers.each { |k| io.print '\t', (row.counts[k]? || 0) }
+    io.puts
+  end
+end
+
 # Emitter
 
 ctx.spawn(name: "emitter") do
@@ -104,26 +133,20 @@ ctx.spawn(name: "emitter") do
   next_index = 0_i64
 
   all_kmers = Kmer.all_kmers(k_size)
-  out.print "ID"
-  all_kmers.each { |k| out.print '\t', k }
-  out.puts
+  write_header(format, output_io, all_kmers)
 
   while row = result_q.receive?
     pending[row.index] = row
 
     while row = pending.delete(next_index)
-      out.print row.id
-      all_kmers.each { |k| out.print '\t', (row.counts[k]? || 0) }
-      out.puts
+      write_row(format, output_io, row, all_kmers)
       next_index += 1
     end
   end
 
   until pending.empty?
     if row = pending.delete(next_index)
-      out.print row.id
-      all_kmers.each { |k| out.print '\t', (row.counts[k]? || 0) }
-      out.puts
+      write_row(format, output_io, row, all_kmers)
       next_index += 1
     else
       break
@@ -139,6 +162,6 @@ total_reads = total_reads_q.receive
 Log.info { "[kc] Completed: #{total_reads} reads processed" }
 
 # Only close file if it's not STDOUT
-unless out == STDOUT
-  out.close
+unless output_io == STDOUT
+  output_io.close
 end
