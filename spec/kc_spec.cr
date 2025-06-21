@@ -15,9 +15,9 @@ describe "kc integration" do
       file.puts "+"
       file.puts "IIII"
       file.flush
-      
+
       result = `./bin/kc -i #{file.path} 2>/dev/null`
-      
+
       result.should contain("ID")
       result.should contain("read1")
     end
@@ -29,7 +29,10 @@ describe "kc integration" do
   end
 
   it "shows error for missing input" do
-    result = `./bin/kc 2>&1`
-    result.should contain("Input file is required")
+    result = IO::Memory.new
+    status = Process.run("./bin/kc", output: result, error: result)
+    output = result.to_s
+    output.should contain("Input file is required")
+    status.exit_code.should_not eq(0)
   end
 end
