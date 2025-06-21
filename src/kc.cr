@@ -103,23 +103,6 @@ ensure
   mainio_wg.done
 end
 
-def generate_all_kmers(k : Int32) : Array(String)
-  bases = ['A', 'C', 'G', 'T']
-  kmers = [""]
-
-  k.times do
-    new_kmers = [] of String
-    kmers.each do |kmer|
-      bases.each do |base|
-        new_kmers << kmer + base
-      end
-    end
-    kmers = new_kmers
-  end
-
-  kmers.sort
-end
-
 # Emitter
 
 ctx.spawn(name: "emitter") do
