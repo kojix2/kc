@@ -22,8 +22,10 @@ OptionParser.parse do |p|
   p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_reads})") { |v| chunk_reads = v.to_i.clamp(1, 10_000) }
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
   p.on("-h", "--help", "Show this help message") { puts p; exit }
+  p.invalid_option { STDERR.puts(p); exit 1 }
+  p.missing_option { STDERR.puts(p); exit 1 }
 end
-abort "Input file is required. Use -i to specify a FASTQ file." if input_file.empty?
+abort "[kc] Input file is required. Use -i to specify a FASTQ file." if input_file.empty?
 
 # Setup logging to STDERR
 log_backend = Log::IOBackend.new(STDERR)
