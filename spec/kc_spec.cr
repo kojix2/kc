@@ -80,10 +80,15 @@ describe "kc integration" do
         File.exists?(output_file.path).should be_true
         File.size(output_file.path).should be > 0
 
-        # Check if it has the expected Arrow IPC format
+        # Check if it has the expected format based on implementation
         content = File.read(output_file.path)
-        # Arrow IPC files start with "ARROW1" magic bytes
-        content[0..5].should eq("ARROW1")
+        {% if flag?(:cpp_arrow) %}
+          # C++ implementation uses official Arrow IPC format
+          content[0..5].should eq("ARROW1")
+        {% else %}
+          # Crystal implementation uses custom ARSN format
+          content[0..3].should eq("ARSN")
+        {% end %}
       end
     end
   end

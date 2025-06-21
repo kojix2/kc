@@ -52,8 +52,12 @@ jobs:
       - name: Build with Crystal implementation
         if: matrix.arrow_impl == 'crystal'
         run: make ARROW_IMPL=crystal
-      - name: Run tests
-        run: crystal spec -Dpreview_mt -Dexecution_context
+      - name: Run tests (C++ implementation)
+        if: matrix.arrow_impl == 'cpp'
+        run: crystal spec -Dpreview_mt -Dexecution_context -Dcpp_arrow
+      - name: Run tests (Crystal implementation)
+        if: matrix.arrow_impl == 'crystal'
+        run: crystal spec -Dpreview_mt -Dexecution_context -Dcrystal_arrow
       - name: Run executable (help)
         run: ./kc --help
       - uses: actions/upload-artifact@v4

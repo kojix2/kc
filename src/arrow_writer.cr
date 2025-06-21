@@ -54,7 +54,6 @@
       result == 0
     end
   end
-
 {% else %}
   # Crystal Arrow implementation (default)
   require "./arrow_sparse"
@@ -91,5 +90,4 @@
       ArrowSparse.write_arrow_sparse(filename, coords, values, read_ids, nnz, num_rows, num_cols)
     end
   end
-
 {% end %}
