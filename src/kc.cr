@@ -13,13 +13,13 @@ chunk_reads = 1_000
 verbose = false
 
 OptionParser.parse do |p|
-  p.banner = "Usage: kmer_counter [options] -i FILE -k K"
-  p.on("-i", "--input FILE", "FASTQ (.gz) input") { |v| input_file = v }
-  p.on("-o", "--output FILE", "Write TSV here") { |v| output_file = v }
-  p.on("-k", "--kmer-size N", "k-mer size") { |v| k_size = v.to_i }
-  p.on("-t", "--threads N", "Worker threads") { |v| worker_cnt = v.to_i.clamp(1, 256) }
-  p.on("-c", "--chunk-size N", "Reads per task (default: 1000)") { |v| chunk_size = v.to_i.clamp(1, 10_000) }
-  p.on("-v", "--verbose", "Verbose output") { |v| verbose = v }
+  p.banner = "Usage: kc [options] -i FILE"
+  p.on("-i", "--input FILE", "Input FASTQ file (.gz supported)") { |v| input_file = v }
+  p.on("-o", "--output FILE", "Output TSV file (default: stdout)") { |v| output_file = v }
+  p.on("-k", "--kmer-size N", "k-mer size (default: #{k_size})") { |v| k_size = v.to_i.clamp(1, 32) }
+  p.on("-t", "--threads N", "Number of worker threads (default: #{worker_cnt})") { |v| worker_cnt = v.to_i.clamp(1, 256) }
+  p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_reads})") { |v| chunk_reads = v.to_i.clamp(1, 10_000) }
+  p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
   p.on("-h", "--help", "Show this help message") { puts p; exit }
 end
 abort "--input/-i is required" if input_file.empty?
