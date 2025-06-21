@@ -130,71 +130,81 @@ end
 
 # Emitter
 
+def flush_ready_rows(pending : Hash(Int64, Kmer::Entry), next_index : Int64)
+  ready = [] of Kmer::Entry
+  index = next_index
+  
+  while row = pending.delete(index)
+    ready << row
+    index += 1
+  end
+  
+  {ready, index}
+end
+
+def to_sparse_data(rows : Array(Kmer::Entry))
+  data = [] of {String, String, UInt32}
+  rows.each do |row|
+    row.counts.each do |kmer, count|
+      next if count == 0
+      data << {row.id, kmer, count}
+    end
+  end
+  data
+end
+
+def save_arrow(file : String, data : Array({String, String, UInt32}), kmers : Array(String))
+  if file.empty?
+    STDERR.puts "[kc] Error: Arrow format requires output file (-o option)"
+    exit 1
+  end
+
+  success = ArrowWriter.write_sparse_coo(file, data, kmers)
+  unless success
+    STDERR.puts "[kc] Error: Failed to write Arrow file"
+    exit 1
+  end
+end
+
 ctx.spawn(name: "emitter") do
   pending = Hash(Int64, Kmer::Entry).new
   next_index = 0_i64
-
   all_kmers = Kmer.all_kmers(k_size)
 
-  # For arrow format, collect all data first
-  if format == "arrow"
+  case format
+  when "arrow"
     all_data = [] of {String, String, UInt32}
 
+    # Collect all results
     while row = result_q.receive?
       pending[row.index] = row
-
-      while row = pending.delete(next_index)
-        row.counts.each do |kmer, count|
-          next if count == 0
-          all_data << {row.id, kmer, count}
-        end
-        next_index += 1
-      end
+      ready_rows, next_index = flush_ready_rows(pending, next_index)
+      all_data.concat(to_sparse_data(ready_rows))
     end
 
+    # Process remaining pending rows
     until pending.empty?
-      if row = pending.delete(next_index)
-        row.counts.each do |kmer, count|
-          next if count == 0
-          all_data << {row.id, kmer, count}
-        end
-        next_index += 1
-      else
-        break
-      end
+      ready_rows, next_index = flush_ready_rows(pending, next_index)
+      break if ready_rows.empty?
+      all_data.concat(to_sparse_data(ready_rows))
     end
 
-    # Write Arrow format
-    if output_file.empty?
-      STDERR.puts "[kc] Error: Arrow format requires output file (-o option)"
-      exit 1
-    end
-
-    success = ArrowWriter.write_sparse_coo(output_file, all_data, all_kmers)
-    unless success
-      STDERR.puts "[kc] Error: Failed to write Arrow file"
-      exit 1
-    end
+    save_arrow(output_file, all_data, all_kmers)
   else
-    # Regular TSV/sparse formats
+    # TSV/sparse formats
     write_header(format, output_io, all_kmers)
 
     while row = result_q.receive?
       pending[row.index] = row
-
-      while row = pending.delete(next_index)
-        write_row(format, output_io, row, all_kmers)
-        next_index += 1
-      end
+      ready_rows, next_index = flush_ready_rows(pending, next_index)
+      ready_rows.each { |r| write_row(format, output_io, r, all_kmers) }
     end
 
+    # Process remaining pending rows
     until pending.empty?
-      if row = pending.delete(next_index)
-        write_row(format, output_io, row, all_kmers)
-        next_index += 1
-      else
-        break
-      end
+      ready_rows, next_index = flush_ready_rows(pending, next_index)
+      break if ready_rows.empty?
+      ready_rows.each { |r| write_row(format, output_io, r, all_kmers) }
     end
   end
 ensure
