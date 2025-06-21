@@ -3,6 +3,7 @@ require "wait_group"
 require "fastx"
 require "fiber/execution_context"
 require "log"
+require "./kmer"
 
 # CLI options
 
@@ -38,32 +39,10 @@ end
 out = output_file.empty? ? STDOUT : File.open(output_file, "w")
 out.sync = true
 
-# types & helpers
-
-alias KmerCount = Hash(String, UInt32)
-
-record ReadRow,
-  idx : Int64,
-  id : String,
-  counts : KmerCount
-
-def count_kmers(seq : String, k : Int32) : KmerCount
-  counts = KmerCount.new(0_u32, initial_capacity: 4**k)
-  return counts if seq.bytesize < k
-
-  encoded_bases = Fastx.encode_bases(seq)
-  encoded_bases.each_cons(k) do |kmer_slice|
-    kmer = Fastx.decode_bases(kmer_slice)
-    counts[kmer] += 1
-  end
-
-  counts
-end
-
 # channels
 
 chunk_q = Channel({Int64, Array(String), Array(String)}).new(16)
-result_q = Channel(ReadRow).new(16)
+result_q = Channel(Kmer::Entry).new(16)
 total_reads_q = Channel(Int64).new(1)
 
 Log.info { "[kc] k-mer counting: k=#{k_size}, threads=#{num_workers}, input=#{File.basename(input_file)}" }
@@ -102,7 +81,7 @@ num_workers.times do |wid|
     while chunk = chunk_q.receive?
       start_idx, id_batch, seq_batch = chunk
       id_batch.each_with_index do |rid, j|
-        res = ReadRow.new(start_idx + j, rid, count_kmers(seq_batch[j], k_size))
+        res = Kmer::Entry.new(start_idx + j, rid, Kmer.count(seq_batch[j], k_size))
         result_q.send res
       end
     end
@@ -121,17 +100,16 @@ end
 # Emitter
 
 ctx.spawn(name: "emitter") do
-  pending = Hash(Int64, ReadRow).new
+  pending = Hash(Int64, Kmer::Entry).new
   next_index = 0_i64
 
-  bases = ['A', 'C', 'G', 'T']
-  all_kmers = bases.repeated_permutations(k_size).map(&.join).to_a.sort
+  all_kmers = Kmer.all_kmers(k_size)
   out.print "ID"
   all_kmers.each { |k| out.print '\t', k }
   out.puts
 
   while row = result_q.receive?
-    pending[row.idx] = row
+    pending[row.index] = row
 
     while row = pending.delete(next_index)
       out.print row.id
