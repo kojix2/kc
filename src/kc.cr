@@ -18,13 +18,14 @@ format = "tsv" # default format
 
 OptionParser.parse do |p|
   p.banner = "Usage: kc [options] -i FILE"
+  p.on("-k", "--kmer-size N", "k-mer size (default: #{k_size})") { |v| k_size = v.to_i.clamp(1, 32) }
   p.on("-i", "--input FILE", "Input FASTQ file (.gz supported)") { |v| input_file = v }
   p.on("-o", "--output FILE", "Output TSV file (default: stdout)") { |v| output_file = v }
-  p.on("-k", "--kmer-size N", "k-mer size (default: #{k_size})") { |v| k_size = v.to_i.clamp(1, 32) }
+  p.on("-f", "--format FORMAT", "Output format: tsv (default), sparse, arrow") { |v| format = v }
   p.on("-t", "--threads N", "Number of worker threads (default: #{num_workers})") { |v| num_workers = v.to_i.clamp(1, 256) }
   p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_size})") { |v| chunk_size = v.to_i.clamp(1, 10_000) }
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
-  p.on("--format FORMAT", "Output format: tsv (default), sparse-tsv, arrow-sparse") { |v| format = v }
+
   p.on("-h", "--help", "Show this help message") { puts p; exit }
   p.invalid_option { STDERR.puts(p); exit 1 }
   p.missing_option { STDERR.puts(p); exit 1 }
@@ -104,7 +105,7 @@ end
 
 def write_header(format : String, io : IO, all_kmers : Array(String))
   case format
-  when "sparse-tsv"
+  when "sparse"
     io.puts "ID\tkmer\tcount"
   else # "tsv"
     io.print "ID"
@@ -115,7 +116,7 @@ end
 
 def write_row(format : String, io : IO, row : Kmer::Entry, all_kmers : Array(String))
   case format
-  when "sparse-tsv"
+  when "sparse"
     row.counts.each do |kmer, count|
       next if count == 0
       io.puts "#{row.id}\t#{kmer}\t#{count}"
@@ -135,8 +136,8 @@ ctx.spawn(name: "emitter") do
 
   all_kmers = Kmer.all_kmers(k_size)
 
-  # For arrow-sparse format, collect all data first
-  if format == "arrow-sparse"
+  # For arrow format, collect all data first
+  if format == "arrow"
     all_data = [] of {String, String, UInt32}
 
     while row = result_q.receive?
@@ -163,19 +164,19 @@ ctx.spawn(name: "emitter") do
       end
     end
 
-    # Write Arrow sparse format
+    # Write Arrow format
     if output_file.empty?
-      STDERR.puts "[kc] Error: Arrow sparse format requires output file (-o option)"
+      STDERR.puts "[kc] Error: Arrow format requires output file (-o option)"
       exit 1
     end
 
     success = ArrowWriter.write_sparse_coo(output_file, all_data, all_kmers)
     unless success
-      STDERR.puts "[kc] Error: Failed to write Arrow sparse file"
+      STDERR.puts "[kc] Error: Failed to write Arrow file"
       exit 1
     end
   else
-    # Regular TSV/sparse-TSV formats
+    # Regular TSV/sparse formats
     write_header(format, output_io, all_kmers)
 
     while row = result_q.receive?

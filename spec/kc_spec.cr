@@ -37,13 +37,13 @@ describe "kc integration" do
     end
   end
 
-  it "outputs sparse-tsv format correctly" do
+  it "outputs sparse format correctly" do
     File.tempfile("test", ".fastq") do |file|
       create_test_fastq(file)
 
-      result = `./kc -i #{file.path} -k 3 --format sparse-tsv 2>/dev/null`
+      result = `./kc -i #{file.path} -k 3 --format sparse 2>/dev/null`
 
-      # Check sparse-tsv header
+      # Check sparse header
       result.should contain("ID\tkmer\tcount")
 
       # Check that it contains read IDs and k-mers
@@ -66,12 +66,12 @@ describe "kc integration" do
     end
   end
 
-  it "outputs arrow-sparse format correctly" do
+  it "outputs arrow format correctly" do
     File.tempfile("test", ".fastq") do |input_file|
       create_test_fastq(input_file)
 
       File.tempfile("output", ".arrow") do |output_file|
-        result = `./kc -i #{input_file.path} -o #{output_file.path} -k 3 --format arrow-sparse 2>/dev/null`
+        result = `./kc -i #{input_file.path} -o #{output_file.path} -k 3 --format arrow 2>/dev/null`
 
         # Should complete without error
         $?.success?.should be_true
@@ -143,8 +143,8 @@ describe "kc integration" do
     result.should contain("Usage: kc")
     result.should contain("--format FORMAT")
     result.should contain("tsv")
-    result.should contain("sparse-tsv")
-    result.should contain("arrow-sparse")
+    result.should contain("sparse")
+    result.should contain("arrow")
   end
 
   it "shows error for missing input" do
@@ -170,14 +170,14 @@ describe "kc integration" do
     end
   end
 
-  it "shows error for arrow-sparse without output file" do
+  it "shows error for arrow without output file" do
     File.tempfile("test", ".fastq") do |file|
       create_test_fastq(file)
 
       result = IO::Memory.new
-      status = Process.run("./kc", ["-i", file.path, "--format", "arrow-sparse"], output: result, error: result)
+      status = Process.run("./kc", ["-i", file.path, "--format", "arrow"], output: result, error: result)
       output = result.to_s
-      output.should contain("Arrow sparse format requires output file")
+      output.should contain("Arrow format requires output file")
       status.exit_code.should_not eq(0)
     end
   end
