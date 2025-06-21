@@ -1,5 +1,5 @@
 # Arrow sparse tensor bindings
-@[Link(ldflags: "-L#{__DIR__}/../ -larrow_sparse")]
+@[Link(ldflags: "#{__DIR__}/../libarrow_sparse.a -lstdc++")]
 lib ArrowSparse
   fun write_arrow_sparse_coo(filename : LibC::Char*, coords : LibC::Int64T*, values : LibC::Double*, nnz : LibC::Int64T, num_rows : LibC::Int64T, num_cols : LibC::Int64T) : LibC::Int
 end

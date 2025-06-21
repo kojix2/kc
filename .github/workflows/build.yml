@@ -19,15 +19,23 @@ jobs:
       - uses: crystal-lang/install-crystal@v1
         with:
           crystal: latest
+      - name: Install C++ compiler
+        if: matrix.os == 'ubuntu'
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+      - name: Install C++ compiler
+        if: matrix.os == 'macos'
+        run: xcode-select --install || true
       - name: Install dependencies
         run: shards install
+      - name: Build static library
+        run: make all
       - name: Build executable
-        run: shards build --release -Dpreview_mt -Dexecution_context
+        run: make test
       - name: Run tests
         run: crystal spec
       - name: Run executable (help)
-        run: bin/kc --help
+        run: ./kc --help
       - uses: actions/upload-artifact@v4
         with:
           name: kc-${{ matrix.os }}
-          path: bin/${{ matrix.os == 'windows' && 'kc.exe' || 'kc' }}
+          path: ${{ matrix.os == 'windows' && 'kc.exe' || 'kc' }}

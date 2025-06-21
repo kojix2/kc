@@ -3,3 +3,10 @@
 /bin/
 /.shards/
 *.dwarf
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+kc

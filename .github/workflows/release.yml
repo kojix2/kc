@@ -29,20 +29,25 @@ jobs:
           mkdir -p bin
           chmod 755 bin
           docker run -d --name alpine -v $(pwd):/workspace -w /workspace crystallang/crystal:latest-alpine tail -f /dev/null
-          docker exec alpine apk add readline-dev readline-static ncurses-dev ncurses-static ncurses-libs
+          docker exec alpine apk add build-base readline-dev readline-static ncurses-dev ncurses-static ncurses-libs
           docker exec alpine shards install --without-development --release
-          docker exec alpine shards build --release --static -Dpreview_mt -Dexecution_context
-          docker exec alpine chmod +x bin/kc
+          docker exec alpine make all
+          docker exec alpine make kc
+          docker exec alpine chmod +x kc
+          docker exec alpine cp kc bin/kc
           docker exec alpine gzip bin/kc
           docker exec alpine mv bin/kc.gz bin/kc-linux.gz
 
       - name: Run Mac Build x64
         if: matrix.os == 'macos'
         run: |
+          xcode-select --install || true
           shards install --without-development --release
-          shards build --release -Dpreview_mt -Dexecution_context
-          otool -L bin/kc
-          chmod +x bin/kc
+          make all
+          make kc
+          otool -L kc
+          chmod +x kc
+          cp kc bin/kc
           gzip bin/kc
           mv bin/kc.gz bin/kc-macos.gz
 
@@ -50,7 +55,10 @@ jobs:
         if: matrix.os == 'windows'
         run: |
           shards install --without-development --release
-          shards build --release --static -Dpreview_mt -Dexecution_context
+          make all
+          make kc
+          mkdir -p bin
+          copy kc.exe bin\kc.exe
           Set-ExecutionPolicy RemoteSigned -Scope Process
           Compress-Archive -Path bin/kc.exe -DestinationPath bin/kc-windows.zip
 

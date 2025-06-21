@@ -1,38 +1,47 @@
-# Makefile for building the Arrow sparse library
+# Makefile for building the Arrow sparse static library and Crystal application
 
+# Compiler settings
 CXX = g++
 CXXFLAGS = -std=c++11 -fPIC -O2 -Wall
-LDFLAGS = -shared
 
-# Library name
+# Library settings
 LIB_NAME = libarrow_sparse
-LIB_EXT = so
-ifeq ($(shell uname -s),Darwin)
-	LIB_EXT = dylib
-	LDFLAGS += -undefined dynamic_lookup
-endif
+STATIC_LIB = $(LIB_NAME).a
 
 # Source files
-SOURCES = src/arrow_sparse.cpp
-OBJECTS = $(SOURCES:.cpp=.o)
-TARGET = $(LIB_NAME).$(LIB_EXT)
+CPP_SOURCES = src/arrow_sparse.cpp
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
 
-.PHONY: all clean
+# Crystal application
+CRYSTAL_APP = kc
+CRYSTAL_SOURCE = src/kc.cr
+CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context
 
-all: $(TARGET)
+.PHONY: all clean install test
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(LDFLAGS) -o $@ $^
+# Default target: build static library
+all: $(STATIC_LIB)
 
+# Build static library
+$(STATIC_LIB): $(CPP_OBJECTS)
+	ar rcs $@ $^
+
+# Compile C++ object files
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Build Crystal application (depends on static library)
+$(CRYSTAL_APP): $(STATIC_LIB)
+	crystal build $(CRYSTAL_SOURCE) $(CRYSTAL_FLAGS) -o $@
+
+# Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(CPP_OBJECTS) $(STATIC_LIB) $(CRYSTAL_APP)
 
-install: $(TARGET)
-	cp $(TARGET) /usr/local/lib/ || sudo cp $(TARGET) /usr/local/lib/
+# Install static library to system
+install: $(STATIC_LIB)
+	cp $(STATIC_LIB) /usr/local/lib/ || sudo cp $(STATIC_LIB) /usr/local/lib/
 
-.PHONY: test
-test: $(TARGET)
-	crystal build src/kc.cr -Dpreview_mt -Dexecution_context
+# Test: build Crystal application
+test: $(CRYSTAL_APP)
+	@echo "Build completed successfully: $(CRYSTAL_APP)"
