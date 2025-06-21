@@ -46,6 +46,22 @@ jobs:
         run: crystal spec
       - name: Run executable (help)
         run: ./kc --help
+      - name: Run Linux Build
+        if: matrix.os == 'ubuntu'
+        run: |
+          mkdir -p bin
+          chmod 755 bin
+          docker run -d --name alpine -v $(pwd):/workspace -w /workspace crystallang/crystal:latest-alpine tail -f /dev/null
+          docker exec alpine apk add build-base readline-dev readline-static ncurses-dev ncurses-static ncurses-libs apache-arrow-dev pkgconfig
+          docker exec alpine shards install --without-development --release
+          docker exec alpine make clean
+          docker exec alpine make all
+          # Build with correct path for Alpine container
+          docker exec alpine crystal build src/kc.cr -Dpreview_mt -Dexecution_context --link-flags="/workspace/libarrow_sparse.a -larrow" -o kc
+          docker exec alpine chmod +x kc
+          docker exec alpine cp kc bin/kc
+          docker exec alpine gzip bin/kc
+          docker exec alpine mv bin/kc.gz bin/kc-linux.gz
       - uses: actions/upload-artifact@v4
         with:
           name: kc-${{ matrix.os }}
