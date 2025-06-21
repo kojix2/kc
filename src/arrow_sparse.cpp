@@ -9,10 +9,12 @@
 
 extern "C"
 {
-    int write_arrow_sparse_coo(
+    int write_arrow_sparse(
         const char *filename,
         const int64_t *coords,
-        const double *values,
+        const uint32_t *values,
+        const char **read_names,
+        const int64_t *read_name_lengths,
         int64_t nnz,
         int64_t num_rows,
         int64_t num_cols)
@@ -25,11 +27,8 @@ extern "C"
                 return -1;
             }
 
-            // Write a simple binary format for now
-            // In a real implementation, this would follow Arrow's IPC format
-
-            // Magic header
-            const char magic[] = "ARSP"; // Arrow Sparse
+            // Magic header for Arrow sparse format with read names
+            const char magic[] = "ARSN"; // Arrow Sparse with Names
             file.write(magic, 4);
 
             // Metadata
@@ -37,11 +36,29 @@ extern "C"
             file.write(reinterpret_cast<const char *>(&num_rows), sizeof(int64_t));
             file.write(reinterpret_cast<const char *>(&num_cols), sizeof(int64_t));
 
+            // Write read names string table
+            // First, write total string data size
+            int64_t total_string_size = 0;
+            for (int64_t i = 0; i < num_rows; i++)
+            {
+                total_string_size += read_name_lengths[i];
+            }
+            file.write(reinterpret_cast<const char *>(&total_string_size), sizeof(int64_t));
+
+            // Write string lengths array
+            file.write(reinterpret_cast<const char *>(read_name_lengths), num_rows * sizeof(int64_t));
+
+            // Write string data (without null terminators)
+            for (int64_t i = 0; i < num_rows; i++)
+            {
+                file.write(read_names[i], read_name_lengths[i]);
+            }
+
             // Coordinates (row, col pairs)
             file.write(reinterpret_cast<const char *>(coords), nnz * 2 * sizeof(int64_t));
 
-            // Values
-            file.write(reinterpret_cast<const char *>(values), nnz * sizeof(double));
+            // Values (uint32_t)
+            file.write(reinterpret_cast<const char *>(values), nnz * sizeof(uint32_t));
 
             file.close();
             return 0;

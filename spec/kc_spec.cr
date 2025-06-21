@@ -82,7 +82,7 @@ describe "kc integration" do
 
         # Check if it has the expected binary format header
         content = File.read(output_file.path)
-        content[0..3].should eq("ARSP") # Magic header from arrow_sparse.cpp
+        content[0..3].should eq("ARSN") # Magic header for version with read names
       end
     end
   end
