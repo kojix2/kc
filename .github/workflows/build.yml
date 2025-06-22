@@ -57,7 +57,7 @@ jobs:
         run: crystal spec -Dpreview_mt -Dexecution_context -Dcpp_arrow
       - name: Run tests (Crystal implementation)
         if: matrix.arrow_impl == 'crystal'
-        run: crystal spec -Dpreview_mt -Dexecution_context -Dcustom_binary
+        run: crystal spec -Dpreview_mt -Dexecution_context
       - name: Run executable (help)
         run: ./kc --help
       - uses: actions/upload-artifact@v4

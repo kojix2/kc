@@ -29,7 +29,7 @@ ifeq ($(ARROW_IMPL),cpp)
   DEPS = $(STATIC_LIB)
   LINK_FLAGS = --link-flags="$(PWD)/$(STATIC_LIB) $(ARROW_LIBS)"
 else
-  CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context -Dcustom_binary
+  CRYSTAL_FLAGS = -Dpreview_mt -Dexecution_context
   DEPS = 
   LINK_FLAGS = 
 endif

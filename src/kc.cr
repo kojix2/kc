@@ -4,7 +4,14 @@ require "fastx"
 require "fiber/execution_context"
 require "log"
 require "./kmer"
-require "./arrow_writer"
+
+# Writer implementation selection
+{% if flag?(:cpp_arrow) %}
+  require "./arrow_writer"
+  require "./arsn_writer"
+{% else %}
+  require "./arsn_writer"
+{% end %}
 
 # CLI options
 
@@ -21,7 +28,11 @@ OptionParser.parse do |p|
   p.on("-k", "--kmer-size N", "k-mer size (default: #{k_size})") { |v| k_size = v.to_i.clamp(1, 32) }
   p.on("-i", "--input FILE", "Input FASTQ file (.gz supported)") { |v| input_file = v }
   p.on("-o", "--output FILE", "Output TSV file (default: stdout)") { |v| output_file = v }
-  p.on("-f", "--format FORMAT", "Output format: tsv (default), sparse, arrow") { |v| format = v }
+  {% if flag?(:cpp_arrow) %}
+    p.on("-f", "--format FORMAT", "Output format: tsv (default), sparse, arrow, arsn") { |v| format = v }
+  {% else %}
+    p.on("-f", "--format FORMAT", "Output format: tsv (default), sparse, arsn") { |v| format = v }
+  {% end %}
   p.on("-t", "--threads N", "Number of worker threads (default: #{num_workers})") { |v| num_workers = v.to_i.clamp(1, 256) }
   p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_size})") { |v| chunk_size = v.to_i.clamp(1, 10_000) }
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
@@ -153,15 +164,27 @@ def to_sparse_data(rows : Array(Kmer::Entry))
   data
 end
 
-def save_arrow(file : String, data : Array({String, String, UInt32}), kmers : Array(String))
+def save_binary_format(file : String, data : Array({String, String, UInt32}), kmers : Array(String), format_name : String)
   if file.empty?
-    STDERR.puts "[kc] Error: Arrow format requires output file (-o option)"
+    STDERR.puts "[kc] Error: #{format_name.capitalize} format requires output file (-o option)"
     exit 1
   end
 
-  success = ArrowWriter.write_sparse_coo(file, data, kmers)
+  success = case format_name
+            when "arrow"
+              {% if flag?(:cpp_arrow) %}
+                ArrowWriter.write_sparse_coo(file, data, kmers)
+              {% else %}
+                false # Arrow format not available in Crystal-only build
+              {% end %}
+            when "arsn"
+              ArsnWriter.write_sparse_coo(file, data, kmers)
+            else
+              false
+            end
+
   unless success
-    STDERR.puts "[kc] Error: Failed to write Arrow file"
+    STDERR.puts "[kc] Error: Failed to write #{format_name} file"
     exit 1
   end
 end
@@ -172,7 +195,7 @@ ctx.spawn(name: "emitter") do
   all_kmers = Kmer.all_kmers(k_size)
 
   case format
-  when "arrow"
+  when "arrow", "arsn"
     all_data = [] of {String, String, UInt32}
 
     # Collect all results
@@ -189,7 +212,7 @@ ctx.spawn(name: "emitter") do
       all_data.concat(to_sparse_data(ready_rows))
     end
 
-    save_arrow(output_file, all_data, all_kmers)
+    save_binary_format(output_file, all_data, all_kmers, format)
   else
     # TSV/sparse formats
     write_header(format, output_io, all_kmers)

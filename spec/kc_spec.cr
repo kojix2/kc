@@ -66,12 +66,35 @@ describe "kc integration" do
     end
   end
 
-  it "outputs arrow format correctly" do
+  {% if flag?(:cpp_arrow) %}
+    it "outputs arrow format correctly" do
+      File.tempfile("test", ".fastq") do |input_file|
+        create_test_fastq(input_file)
+
+        File.tempfile("output", ".arrow") do |output_file|
+          result = `./kc -i #{input_file.path} -o #{output_file.path} -k 3 --format arrow 2>/dev/null`
+
+          # Should complete without error
+          $?.success?.should be_true
+
+          # Output file should be created and have content
+          File.exists?(output_file.path).should be_true
+          File.size(output_file.path).should be > 0
+
+          # Check if it has the expected format - C++ implementation uses official Arrow IPC format
+          content = File.read(output_file.path)
+          content[0..5].should eq("ARROW1")
+        end
+      end
+    end
+  {% end %}
+
+  it "outputs arsn format correctly" do
     File.tempfile("test", ".fastq") do |input_file|
       create_test_fastq(input_file)
 
-      File.tempfile("output", ".arrow") do |output_file|
-        result = `./kc -i #{input_file.path} -o #{output_file.path} -k 3 --format arrow 2>/dev/null`
+      File.tempfile("output", ".arsn") do |output_file|
+        result = `./kc -i #{input_file.path} -o #{output_file.path} -k 3 --format arsn 2>/dev/null`
 
         # Should complete without error
         $?.success?.should be_true
@@ -80,15 +103,9 @@ describe "kc integration" do
         File.exists?(output_file.path).should be_true
         File.size(output_file.path).should be > 0
 
-        # Check if it has the expected format based on implementation
+        # Check if it has the expected format - ARSN format
         content = File.read(output_file.path)
-        {% if flag?(:cpp_arrow) %}
-          # C++ implementation uses official Arrow IPC format
-          content[0..5].should eq("ARROW1")
-        {% else %}
-          # Custom binary implementation uses ARSN format
-          content[0..3].should eq("ARSN")
-        {% end %}
+        content[0..3].should eq("ARSN")
       end
     end
   end
@@ -150,7 +167,10 @@ describe "kc integration" do
     result.should contain("--format FORMAT")
     result.should contain("tsv")
     result.should contain("sparse")
-    result.should contain("arrow")
+    result.should contain("arsn")
+    {% if flag?(:cpp_arrow) %}
+      result.should contain("arrow")
+    {% end %}
   end
 
   it "shows error for missing input" do
@@ -176,14 +196,28 @@ describe "kc integration" do
     end
   end
 
-  it "shows error for arrow without output file" do
+  {% if flag?(:cpp_arrow) %}
+    it "shows error for arrow without output file" do
+      File.tempfile("test", ".fastq") do |file|
+        create_test_fastq(file)
+
+        result = IO::Memory.new
+        status = Process.run("./kc", ["-i", file.path, "--format", "arrow"], output: result, error: result)
+        output = result.to_s
+        output.should contain("Arrow format requires output file")
+        status.exit_code.should_not eq(0)
+      end
+    end
+  {% end %}
+
+  it "shows error for arsn without output file" do
     File.tempfile("test", ".fastq") do |file|
       create_test_fastq(file)
 
       result = IO::Memory.new
-      status = Process.run("./kc", ["-i", file.path, "--format", "arrow"], output: result, error: result)
+      status = Process.run("./kc", ["-i", file.path, "--format", "arsn"], output: result, error: result)
       output = result.to_s
-      output.should contain("Arrow format requires output file")
+      output.should contain("Arsn format requires output file")
       status.exit_code.should_not eq(0)
     end
   end

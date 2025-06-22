@@ -34,7 +34,7 @@ jobs:
           docker exec alpine make clean
           docker exec alpine make all
           # Build with correct path for Alpine container
-          docker exec alpine crystal build src/kc.cr -Dpreview_mt -Dexecution_context --link-flags="/workspace/libarrow_sparse.a -larrow" -o kc
+          docker exec alpine crystal build src/kc.cr -Dpreview_mt -Dexecution_context -Dcpp_arrow --link-flags="/workspace/libarrow_sparse.a -larrow" -o kc
           docker exec alpine chmod +x kc
           docker exec alpine cp kc bin/kc
           docker exec alpine gzip bin/kc
