@@ -16,23 +16,30 @@ STATIC_LIB = libarrow_sparse.a
 CPP_SOURCES = src/arrow_sparse.cpp
 CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
 
-.PHONY: all clean test help check-arrow
+.PHONY: all clean test help check-arrow deps
 
 # Default target - build with ARSN support only
 all: $(CRYSTAL_APP)
 
+# Install Crystal dependencies if lib directory doesn't exist
+deps:
+	@if [ ! -d "lib" ]; then \
+		echo "Installing Crystal dependencies..."; \
+		shards install; \
+	fi
+
 # Build with ARSN support only (default)
-$(CRYSTAL_APP): 
+$(CRYSTAL_APP): deps
 	@echo "Building kc with ARSN format support..."
 	crystal build $(CRYSTAL_SOURCE) $(CRYSTAL_FLAGS) -o $@
 
 # Build with static linking (for release)
-static:
+static: deps
 	@echo "Building kc with static linking..."
 	crystal build $(CRYSTAL_SOURCE) $(CRYSTAL_FLAGS) --static -o $(CRYSTAL_APP)
 
 # Build with both Arrow and ARSN support
-arrow: check-arrow $(STATIC_LIB)
+arrow: deps check-arrow $(STATIC_LIB)
 	@echo "Building kc with Arrow + ARSN format support..."
 	crystal build $(CRYSTAL_SOURCE) $(CRYSTAL_FLAGS) -Dcpp_arrow --link-flags="$(PWD)/$(STATIC_LIB) $(ARROW_LIBS)" -o $(CRYSTAL_APP)
 
@@ -52,9 +59,10 @@ $(STATIC_LIB): $(CPP_OBJECTS)
 clean:
 	rm -f $(CPP_OBJECTS) $(STATIC_LIB) $(CRYSTAL_APP)
 
-# Test build
-test: $(CRYSTAL_APP)
-	@echo "Build completed successfully: $(CRYSTAL_APP)"
+# Run tests
+test: deps
+	@echo "Running Crystal tests..."
+	crystal spec
 
 # Show help
 help:
@@ -63,8 +71,7 @@ help:
 	@echo "  static     - Build with static linking (for release)"
 	@echo "  arrow      - Build with Arrow + ARSN format support"
 	@echo "  clean      - Clean build artifacts"
-	@echo "  test       - Build and test"
-	@echo "  check-arrow - Check if Arrow C++ library is available"
+	@echo "  test       - Run Crystal tests (crystal spec)"
 	@echo "  help       - Show this help"
 	@echo ""
 	@echo "Output formats:"
