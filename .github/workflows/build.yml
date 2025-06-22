@@ -46,13 +46,13 @@ jobs:
           fi
       - name: Install dependencies
         run: shards install
-      - name: Build with C++ implementation
+      - name: Build with Arrow implementation
         if: matrix.arrow_impl == 'cpp'
-        run: make ARROW_IMPL=cpp
+        run: make arrow
       - name: Build with Crystal implementation
         if: matrix.arrow_impl == 'crystal'
-        run: make ARROW_IMPL=crystal
-      - name: Run tests (C++ implementation)
+        run: make
+      - name: Run tests (Arrow implementation)
         if: matrix.arrow_impl == 'cpp'
         run: crystal spec -Dpreview_mt -Dexecution_context -Dcpp_arrow
       - name: Run tests (Crystal implementation)

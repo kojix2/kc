@@ -6,21 +6,29 @@ kc counts k-mers for each read in a FASTQ file.
 
 ## Build
 
-```
-make test
+```bash
+make        # Default: ARSN format support
+make arrow  # Arrow + ARSN format support
 ```
 
 ## Usage
 
-```
-./kc -i input.fastq
+```bash
+./kc -i input.fastq -f arsn -o output.arsn
 ```
 
 ## Output Formats
 
 - `tsv` (default): Dense matrix format
 - `sparse`: Sparse format (ID, k-mer, count)
-- `arrow`: Arrow IPC format
+- `arrow`: Arrow IPC format (requires C++ implementation)
+- `arsn`: ARSN custom binary format (compact sparse matrix storage)
+
+### Implementation Details
+
+- Default build (`make`): Supports `tsv`, `sparse`, `arsn` formats
+- Arrow build (`make arrow`): Supports `tsv`, `sparse`, `arrow`, `arsn` formats
+- Both `arrow` and `arsn` formats require output file (`-o` option)
 
 ## Options
 
@@ -29,7 +37,7 @@ Usage: kc [options] -i FILE
     -k, --kmer-size N                k-mer size (default: 3)
     -i, --input FILE                 Input FASTQ file (.gz supported)
     -o, --output FILE                Output TSV file (default: stdout)
-    -f, --format FORMAT              Output format: tsv (default), sparse, arrow
+    -f, --format FORMAT              Output format: tsv (default), sparse, arrow, arsn
     -t, --threads N                  Number of worker threads (default: 4)
     -c, --chunk-size N               Reads per processing chunk (default: 1000)
     -v, --verbose                    Enable verbose output
