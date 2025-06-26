@@ -57,7 +57,8 @@ module SparseBinary
       end
 
       true
-    rescue
+    rescue ex
+      STDERR.puts "[SparseBinary] Error: Failed to write file '#{filename}': #{ex.message}"
       false
     end
   end
@@ -106,7 +107,8 @@ module SparseBinary
       end
 
       true
-    rescue
+    rescue ex
+      STDERR.puts "[SparseBinary] Error: Failed to write file '#{filename}': #{ex.message}"
       false
     end
   end

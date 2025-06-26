@@ -23,16 +23,18 @@ chunk_size = 1_000
 verbose = false
 format = "tsv" # default format
 
+# Build format options string based on available features
+format_options = "tsv (default), sparse, arsn"
+{% if flag?(:cpp_arrow) %}
+  format_options = "tsv (default), sparse, arrow, arsn"
+{% end %}
+
 OptionParser.parse do |p|
   p.banner = "Usage: kc [options] -i FILE"
   p.on("-k", "--kmer-size N", "k-mer size (default: #{k_size})") { |v| k_size = v.to_i.clamp(1, 32) }
   p.on("-i", "--input FILE", "Input FASTQ file (.gz supported)") { |v| input_file = v }
-  p.on("-o", "--output FILE", "Output TSV file (default: stdout)") { |v| output_file = v }
-  {% if flag?(:cpp_arrow) %}
-    p.on("-f", "--format FORMAT", "Output format: tsv (default), sparse, arrow, arsn") { |v| format = v }
-  {% else %}
-    p.on("-f", "--format FORMAT", "Output format: tsv (default), sparse, arsn") { |v| format = v }
-  {% end %}
+  p.on("-o", "--output FILE", "Output file (default: stdout)") { |v| output_file = v }
+  p.on("-f", "--format FORMAT", "Output format: #{format_options}") { |v| format = v }
   p.on("-t", "--threads N", "Number of worker threads (default: #{num_workers})") { |v| num_workers = v.to_i.clamp(1, 256) }
   p.on("-c", "--chunk-size N", "Reads per processing chunk (default: #{chunk_size})") { |v| chunk_size = v.to_i.clamp(1, 10_000) }
   p.on("-v", "--verbose", "Enable verbose output") { |v| verbose = v }
@@ -114,7 +116,8 @@ end
 
 # Output formatters
 
-def write_header(format : String, io : IO, all_kmers : Array(String))
+# Write header row for the specified output format
+def write_header(format : String, io : IO, all_kmers : Array(String)) : Nil
   case format
   when "sparse"
     io.puts "ID\tkmer\tcount"
@@ -125,7 +128,8 @@ def write_header(format : String, io : IO, all_kmers : Array(String))
   end
 end
 
-def write_row(format : String, io : IO, row : Kmer::Entry, all_kmers : Array(String))
+# Write a single data row for the specified output format
+def write_row(format : String, io : IO, row : Kmer::Entry, all_kmers : Array(String)) : Nil
   case format
   when "sparse"
     row.counts.each do |kmer, count|
@@ -139,9 +143,10 @@ def write_row(format : String, io : IO, row : Kmer::Entry, all_kmers : Array(Str
   end
 end
 
-# Emitter
+# Emitter helper functions
 
-def flush_ready_rows(pending : Hash(Int64, Kmer::Entry), next_index : Int64)
+# Flush ready rows from pending hash in order
+def flush_ready_rows(pending : Hash(Int64, Kmer::Entry), next_index : Int64) : {Array(Kmer::Entry), Int64}
   ready = [] of Kmer::Entry
   index = next_index
 
@@ -153,7 +158,8 @@ def flush_ready_rows(pending : Hash(Int64, Kmer::Entry), next_index : Int64)
   {ready, index}
 end
 
-def to_sparse_data(rows : Array(Kmer::Entry))
+# Convert k-mer entries to sparse data format
+def to_sparse_data(rows : Array(Kmer::Entry)) : Array({String, String, UInt32})
   data = [] of {String, String, UInt32}
   rows.each do |row|
     row.counts.each do |kmer, count|
@@ -164,7 +170,8 @@ def to_sparse_data(rows : Array(Kmer::Entry))
   data
 end
 
-def save_binary_format(file : String, data : Array({String, String, UInt32}), kmers : Array(String), format_name : String)
+# Save data in binary format (arrow or arsn)
+def save_binary_format(file : String, data : Array({String, String, UInt32}), kmers : Array(String), format_name : String) : Nil
   if file.empty?
     STDERR.puts "[kc] Error: #{format_name.capitalize} format requires output file (-o option)"
     exit 1

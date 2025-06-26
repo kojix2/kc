@@ -5,7 +5,8 @@ lib ArrowSparse
 end
 
 module ArrowWriter
-  def self.write_sparse_coo(filename : String, data : Array({String, String, UInt32}), all_kmers : Array(String))
+  # Write sparse COO format data to Arrow binary file
+  def self.write_sparse_coo(filename : String, data : Array({String, String, UInt32}), all_kmers : Array(String)) : Bool
     # Create mapping from kmer to column index
     kmer_to_col = Hash(String, Int64).new
     all_kmers.each_with_index { |kmer, idx| kmer_to_col[kmer] = idx.to_i64 }
@@ -48,6 +49,10 @@ module ArrowWriter
     LibC.free(read_name_ptrs.as(Void*))
     LibC.free(read_name_lengths.as(Void*))
 
-    result == 0
+    success = result == 0
+    unless success
+      STDERR.puts "[ArrowWriter] Error: Failed to write Arrow file '#{filename}'"
+    end
+    success
   end
 end
